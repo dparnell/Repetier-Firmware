@@ -365,7 +365,7 @@ STEPPER_CURRENT_CONTROL
 #if MOTHERBOARD == 3 || MOTHERBOARD == 33 || MOTHERBOARD == 34 || MOTHERBOARD == 35
 #define KNOWN_BOARD 1
 
-#if !(defined (__AVR_ATmega1280__ ) || defined (__AVR_ATmega2560__ ) || defined (ARDUINO_ARCH_PIC32))
+#if !(defined (__AVR_ATmega1280__ ) || defined (__AVR_ATmega2560__ ) || defined (__PIC32MX))
 #error Oops!  Make sure you have 'Arduino Mega' selected from the 'Tools -> Boards' menu.
 #endif
 

@@ -52,8 +52,10 @@
 #define FSTRINGVAR(var) static const char var[] PROGMEM;
 #define FSTRINGPARAM(var) PGM_P var
 
+#ifdef __AVR__
 #include <avr/eeprom.h>
 #include <avr/wdt.h>
+#endif
 /** \brief Prescale factor, timer0 runs at.
 
 All known arduino boards use 64. This value is needed for the extruder timing. */
@@ -61,7 +63,7 @@ All known arduino boards use 64. This value is needed for the extruder timing. *
 
 #define ANALOG_PRESCALER _BV(ADPS0)|_BV(ADPS1)|_BV(ADPS2)
 
-#if MOTHERBOARD==8 || MOTHERBOARD==88 || MOTHERBOARD==9 || MOTHERBOARD==92 || CPU_ARCH!=ARCH_AVR
+#if MOTHERBOARD==8 || MOTHERBOARD==88 || MOTHERBOARD==9 || MOTHERBOARD==92 || CPU_ARCH!=ARCH_AVR || defined(ARDUINO_ARCH_PIC32)
 #define EXTERNALSERIAL
 #endif
 //#define EXTERNALSERIAL  // Force using arduino serial
@@ -79,7 +81,7 @@ All known arduino boards use 64. This value is needed for the extruder timing. *
 #include "WProgram.h"
 #define COMPAT_PRE1
 #endif
-#if CPU_ARCH==ARCH_AVR
+#if __AVR__
 #include "fastio.h"
 #else
 #define	READ(IO)  digitalRead(IO)
@@ -88,30 +90,56 @@ All known arduino boards use 64. This value is needed for the extruder timing. *
 #define	SET_OUTPUT(IO)  pinMode(IO, OUTPUT)
 #endif
 
+#ifndef PULLUP
+#if defined(ARDUINO_ARCH_PIC32)
+// TODO: implement this
+#define PULLUP(PIN, STATE)
+#else
+#error Implement PULLUP
+#endif
+#endif
+
+#ifndef TOGGLE
+#if defined(ARDUINO_ARCH_PIC32)
+// TODO: implement this
+#define TOGGLE(PIN)
+#else
+#error Implement PULLUP
+#endif
+#endif
+
 class InterruptProtectedBlock
 {
     uint8_t sreg;
 public:
     inline void protect()
     {
+#ifdef __AVR__
         cli();
+#endif
     }
 
     inline void unprotect()
     {
-        SREG = sreg;
-    }
+#ifdef __AVR__
+		SREG = sreg;
+#endif
+	}
 
     inline InterruptProtectedBlock(bool later = false)
     {
+#ifdef __AVR__
         sreg = SREG;
         if(!later)
             cli();
+#endif
     }
 
     inline ~InterruptProtectedBlock()
     {
+#ifdef __AVR__
         SREG = sreg;
+#endif
     }
 };
 
@@ -280,7 +308,7 @@ public:
     */
     static inline int32_t Div4U2U(uint32_t a,uint16_t b)
     {
-#if CPU_ARCH==ARCH_AVR
+#if CPU_ARCH==ARCH_AVR && !defined(ARDUINO_ARCH_PIC32)
         // r14/r15 remainder
         // r16 counter
         __asm__ __volatile__ (
@@ -365,6 +393,7 @@ public:
     }
     static inline unsigned long U16SquaredToU32(unsigned int val)
     {
+#if defined(__AVR__)
         long res;
         __asm__ __volatile__ ( // 15 Ticks
             "mul %A1,%A1 \n\t"
@@ -384,10 +413,13 @@ public:
             : "1"(val)
         );
         return res;
+#else
+		return val * val;
+#endif
     }
     static inline unsigned int ComputeV(long timer,long accel)
     {
-#if CPU_ARCH==ARCH_AVR
+#if CPU_ARCH==ARCH_AVR && !defined(ARDUINO_ARCH_PIC32)
         unsigned int res;
         // 38 Ticks
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -434,6 +466,7 @@ public:
 // Multiply two 16 bit values and return 32 bit result
     static inline uint32_t mulu16xu16to32(unsigned int a,unsigned int b)
     {
+#ifdef __AVR__
         uint32_t res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -457,11 +490,14 @@ public:
             :"r18" );
         // return (long)a*b;
         return res;
+#else
+		return a*b;
+#endif
     }
 // Multiply two 16 bit values and return 32 bit result
     static inline unsigned int mulu6xu16shift16(unsigned int a,unsigned int b)
     {
-#if CPU_ARCH == ARCH_AVR
+#if CPU_ARCH == ARCH_AVR && !defined(ARDUINO_ARCH_PIC32)
         unsigned int res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -519,37 +555,69 @@ public:
     }
     static inline void eprSetByte(unsigned int pos,uint8_t value)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		// TODO: implement this
+#else
         eeprom_write_byte((unsigned char *)(EEPROM_OFFSET + pos), value);
+#endif
     }
     static inline void eprSetInt16(unsigned int pos,int16_t value)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		// TODO: implement this
+#else
         eeprom_write_word((unsigned int*)(EEPROM_OFFSET + pos),value);
-    }
+#endif
+	}
     static inline void eprSetInt32(unsigned int pos,int32_t value)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		// TODO: implement this
+#else
         eeprom_write_dword((uint32_t*)(EEPROM_OFFSET + pos),value);
+#endif
     }
     static inline void eprSetFloat(unsigned int pos,float value)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		// TODO: implement this
+#else
         eeprom_write_block(&value,(void*)(EEPROM_OFFSET + pos), 4);
+#endif
     }
     static inline uint8_t eprGetByte(unsigned int pos)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		return 0; // TODO: implement this
+#else
         return eeprom_read_byte ((unsigned char *)(EEPROM_OFFSET + pos));
+#endif
     }
     static inline int16_t eprGetInt16(unsigned int pos)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		return 0; // TODO: implement this
+#else
         return eeprom_read_word((uint16_t *)(EEPROM_OFFSET + pos));
+#endif
     }
     static inline int32_t eprGetInt32(unsigned int pos)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		return 0; // TODO: implement this
+#else
         return eeprom_read_dword((uint32_t*)(EEPROM_OFFSET + pos));
+#endif
     }
     static inline float eprGetFloat(unsigned int pos)
     {
+#ifdef ARDUINO_ARCH_PIC32
+		return 0; // TODO: imeplement this
+#else
         float v;
         eeprom_read_block(&v,(void *)(EEPROM_OFFSET + pos),4); // newer gcc have eeprom_read_block but not arduino 22
         return v;
+#endif
     }
 
     // Faster version of InterruptProtectedBlock.
@@ -557,7 +625,9 @@ public:
     // interrupt handler.
     static inline void allowInterrupts()
     {
+#ifdef __AVR__
         sei();
+#endif
     }
 
     // Faster version of InterruptProtectedBlock.
@@ -565,7 +635,9 @@ public:
     // interrupt handler.
     static inline void forbidInterrupts()
     {
+#ifdef __AVR__
         cli();
+#endif
     }
     static inline unsigned long timeInMilliseconds()
     {
@@ -633,19 +705,32 @@ public:
 #elif defined PRR0
         PRR0 &= ~(1<<PRSPI);
 #endif
+
+#ifdef __AVR__
         // See avr processor documentation
         SPCR = (1 << SPE) | (1 << MSTR) | (r >> 1);
         SPSR = (r & 1 || r == 6 ? 0 : 1) << SPI2X;
-
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
     }
     static inline uint8_t spiReceive(uint8_t send=0xff)
     {
+#ifdef __AVR__
         SPDR = send;
         while (!(SPSR & (1 << SPIF))) {}
         return SPDR;
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
     }
     static inline void spiReadBlock(uint8_t*buf,size_t nbyte)
     {
+#ifdef __AVR__
         if (nbyte-- == 0) return;
         SPDR = 0XFF;
         for (size_t i = 0; i < nbyte; i++)
@@ -656,15 +741,27 @@ public:
         }
         while (!(SPSR & (1 << SPIF))) {}
         buf[nbyte] = SPDR;
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
     }
     static inline void spiSend(uint8_t b)
     {
+#ifdef __AVR__
         SPDR = b;
         while (!(SPSR & (1 << SPIF))) {}
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
     }
     static inline void spiSend(const uint8_t* buf , size_t n)
     {
         if (n == 0) return;
+#ifdef __AVR__
         SPDR = buf[0];
         if (n > 1)
         {
@@ -679,11 +776,17 @@ public:
             }
         }
         while (!(SPSR & (1 << SPIF))) {}
-    }
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
+	}
 
     static inline __attribute__((always_inline))
     void spiSendBlock(uint8_t token, const uint8_t* buf)
     {
+#ifdef __AVR__
         SPDR = token;
         for (uint16_t i = 0; i < 512; i += 2)
         {
@@ -693,6 +796,11 @@ public:
             SPDR = buf[i + 1];
         }
         while (!(SPSR & (1 << SPIF))) {}
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error SPI not implemented
+#endif
     }
 
     // I2C Support
@@ -710,16 +818,29 @@ public:
 
     inline static void startWatchdog()
     {
+#ifdef __AVR__
 #if defined (__AVR_ATmega1280__) || defined (__AVR_ATmega2560__)
         WDTCSR = (1<<WDCE) | (1<<WDE);								// wdt FIX for arduino mega boards
         WDTCSR = (1<<WDIE) | (1<<WDP3);
 #else
         wdt_enable(WDTO_4S);
 #endif
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error WDT not implemented
+#endif
+
     };
     inline static void stopWatchdog()
     {
+#ifdef __AVR__
         wdt_disable();
+#elif defined(ARDUINO_ARCH_PIC32)
+		// TODO: implement this
+#else
+#error WDT not implemented
+#endif
     }
     inline static void pingWatchdog()
     {
@@ -757,6 +878,7 @@ private:
 #define PWM_TIMSK TIMSK2
 #define PWM_OCIE OCIE2B
 #else*/
+#ifdef __AVR__
 #define EXTRUDER_TIMER_VECTOR TIMER0_COMPA_vect
 #define EXTRUDER_OCR OCR0A
 #define EXTRUDER_TCCR TCCR0A
@@ -767,5 +889,6 @@ private:
 #define PWM_TCCR TCCR0A
 #define PWM_TIMSK TIMSK0
 #define PWM_OCIE OCIE0B
+#endif
 //#endif
 #endif // HAL_H

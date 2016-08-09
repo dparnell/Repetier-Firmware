@@ -1,5 +1,7 @@
 #include "Repetier.h"
+#ifdef __AVR__
 #include <compat/twi.h>
+#endif
 
 #if ANALOG_INPUTS > 0
 uint8 osAnalogInputCounter[ANALOG_INPUTS];
@@ -23,6 +25,7 @@ HAL::~HAL()
 
 uint16_t HAL::integerSqrt(uint32_t a)
 {
+#ifdef __AVR__
 // http://www.mikrocontroller.net/articles/AVR_Arithmetik#32_Bit_.2F_32_Bit
 //-----------------------------------------------------------
 // Fast and short 32 bits AVR sqrt routine, avr-gcc ABI compliant
@@ -80,6 +83,17 @@ uint16_t HAL::integerSqrt(uint32_t a)
         :"r"(a)
         :"r18","r19","r27","r26" );
     return b;
+#else
+	// n^2 == sum(first n odd numbers)
+	int x = 0;
+	int count = 1;
+	while (a > 0) {
+		a = a - count;
+		count += 2;
+		x++;
+	}
+	return x;
+#endif
 }
 
 
@@ -117,7 +131,7 @@ function uses lookup tables to find a fast approximation of the result.
 */
 int32_t HAL::CPUDivU2(unsigned int divisor)
 {
-#if CPU_ARCH==ARCH_AVR
+#ifdef __AVR__
     int32_t res;
     unsigned short table;
     if(divisor<8192)
@@ -232,6 +246,7 @@ int32_t HAL::CPUDivU2(unsigned int divisor)
 
 void HAL::setupTimer()
 {
+#if defined(__AVR__)
 #if USE_ADVANCE
     EXTRUDER_TCCR = 0; // need Normal not fastPWM set by arduino init
     EXTRUDER_TIMSK |= (1<<EXTRUDER_OCIE); // Activate compa interrupt on timer 0
@@ -274,10 +289,16 @@ void HAL::setupTimer()
     TIMSK3 =  _BV(OCIE3A) ; // enable the output compare interrupt
 #endif
 #endif
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Timer support not implemented
+#endif
 }
 
 void HAL::showStartReason()
 {
+#ifdef __AVR__
     // Check startup - does nothing if bootloader sets MCUSR to 0
     uint8_t mcu = MCUSR;
     if(mcu & 1) Com::printInfoFLN(Com::tPowerUp);
@@ -286,9 +307,11 @@ void HAL::showStartReason()
     if(mcu & 8) Com::printInfoFLN(Com::tWatchdog);
     if(mcu & 32) Com::printInfoFLN(Com::tSoftwareReset);
     MCUSR=0;
+#endif
 }
 int HAL::getFreeRam()
 {
+#if defined(__AVR__)
     int freeram = 0;
     InterruptProtectedBlock noInts;
     uint8_t * heapptr, * stackptr;
@@ -297,6 +320,11 @@ int HAL::getFreeRam()
     stackptr =  (uint8_t *)(SP);           // save value of stack pointer
     freeram = (int)stackptr-(int)heapptr;
     return freeram;
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 void(* resetFunc) (void) = 0; //declare reset function @ address 0
@@ -308,6 +336,7 @@ void HAL::resetHardware()
 
 void HAL::analogStart()
 {
+#if defined(__AVR__)
 #if ANALOG_INPUTS > 0
     ADMUX = ANALOG_REF; // refernce voltage
     for(uint8_t i = 0; i < ANALOG_INPUTS; i++)
@@ -333,6 +362,12 @@ void HAL::analogStart()
     ADMUX = (ADMUX & ~(0x1F)) | (channel & 7);
     ADCSRA |= _BV(ADSC); // start conversion without interrupt!
 #endif
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
+
 }
 
 /*************************************************************************
@@ -356,9 +391,15 @@ void HAL::analogStart()
 
 void HAL::i2cSetClockspeed(uint32_t clockSpeedHz)
 {
+#if defined(__AVR__)
     /* initialize TWI clock: 100 kHz clock, TWPS = 0 => prescaler = 1 */
     TWSR = 0;                         /* no prescaler */
     TWBR = ((F_CPU/clockSpeedHz)-16)/2;  /* must be > 10 for stable operation */
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 /*************************************************************************
@@ -366,9 +407,15 @@ void HAL::i2cSetClockspeed(uint32_t clockSpeedHz)
 *************************************************************************/
 void HAL::i2cInit(uint32_t clockSpeedHz)
 {
+#if defined(__AVR__)
     /* initialize TWI clock: 100 kHz clock, TWPS = 0 => prescaler = 1 */
     TWSR = 0;                         /* no prescaler */
     TWBR = ((F_CPU/clockSpeedHz)-16)/2;  /* must be > 10 for stable operation */
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 
@@ -378,6 +425,7 @@ void HAL::i2cInit(uint32_t clockSpeedHz)
 *************************************************************************/
 unsigned char HAL::i2cStart(uint8_t address)
 {
+#if defined(__AVR__)
     uint8_t   twst;
 
     // send START condition
@@ -402,7 +450,11 @@ unsigned char HAL::i2cStart(uint8_t address)
     if ( (twst != TW_MT_SLA_ACK) && (twst != TW_MR_SLA_ACK) ) return 1;
 
     return 0;
-
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 
@@ -414,6 +466,7 @@ unsigned char HAL::i2cStart(uint8_t address)
 *************************************************************************/
 void HAL::i2cStartWait(unsigned char address)
 {
+#if defined(__AVR__)
     uint8_t   twst;
     while ( 1 )
     {
@@ -449,7 +502,11 @@ void HAL::i2cStartWait(unsigned char address)
         //if( twst != TW_MT_SLA_ACK) return 1;
         break;
     }
-
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 
@@ -458,10 +515,16 @@ void HAL::i2cStartWait(unsigned char address)
 *************************************************************************/
 void HAL::i2cStop(void)
 {
+#if defined(__AVR__)
     /* send stop condition */
     TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWSTO);
     // wait until stop condition is executed and bus released
     while(TWCR & (1<<TWSTO));
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 
@@ -474,6 +537,7 @@ void HAL::i2cStop(void)
 *************************************************************************/
 void HAL::i2cWrite( unsigned char data )
 {
+#if defined(__AVR__)
     //uint8_t   twst;
     // send data to the previously addressed device
     TWDR = data;
@@ -484,6 +548,11 @@ void HAL::i2cWrite( unsigned char data )
     //twst = TW_STATUS & 0xF8;
     //if( twst != TW_MT_DATA_ACK) return 1;
     //return 0;
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 
@@ -493,9 +562,15 @@ void HAL::i2cWrite( unsigned char data )
 *************************************************************************/
 unsigned char HAL::i2cReadAck(void)
 {
+#if defined(__AVR__)
     TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
     while(!(TWCR & (1<<TWINT)));
     return TWDR;
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 /*************************************************************************
@@ -505,9 +580,15 @@ unsigned char HAL::i2cReadAck(void)
 *************************************************************************/
 unsigned char HAL::i2cReadNak(void)
 {
+#if defined(__AVR__)
     TWCR = (1<<TWINT) | (1<<TWEN);
     while(!(TWCR & (1<<TWINT)));
     return TWDR;
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 #if FEATURE_SERVO
@@ -624,6 +705,7 @@ at delay ticks measured from the last interrupt. delay must be << 2^24
 */
 inline void setTimer(uint32_t delay)
 {
+#if defined(__AVR__)
     __asm__ __volatile__ (
         "cli \n\t"
         "tst %C[delay] \n\t" //if(delay<65536) {
@@ -672,12 +754,18 @@ inline void setTimer(uint32_t delay)
         stepperWait = delay-32768;
         OCR1A = 32768;
       }*/
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this
+#else
+#error Implement this
+#endif
 }
 
 volatile uint8_t insideTimer1 = 0;
 long stepperWait = 0;
 /** \brief Timer interrupt routine to drive the stepper motors.
 */
+#if defined(__AVR__)
 ISR(TIMER1_COMPA_vect)
 {
     if(insideTimer1) return;
@@ -745,6 +833,11 @@ ISR(TIMER1_COMPA_vect)
     DEBUG_MEMORY;
     insideTimer1 = 0;
 }
+#elif defined(ARDUINO_ARCH_PIC32)
+// TODO: implement this!!!
+#else
+#error Implement this
+#endif
 
 #if !defined(HEATER_PWM_SPEED)
 #define HEATER_PWM_SPEED 0
@@ -792,7 +885,13 @@ ISR(TIMER1_COMPA_vect)
 /**
 This timer is called 3906 timer per second. It is used to update pwm values for heater and some other frequent jobs.
 */
+#if defined(__AVR__)
 ISR(PWM_TIMER_VECTOR)
+#elif defined(ARDUINO_ARCH_PIC32)
+void timer_interrupt_handler()
+#else
+#error Implement this
+#endif
 {
     static uint8_t pwm_count_cooler = 0;
     static uint8_t pwm_count_heater = 0;
@@ -800,7 +899,14 @@ ISR(PWM_TIMER_VECTOR)
 #if NUM_EXTRUDER > 0 && ((defined(EXT0_HEATER_PIN) && EXT0_HEATER_PIN > -1 && EXT0_EXTRUDER_COOLER_PIN > -1) || (NUM_EXTRUDER > 1 && EXT1_EXTRUDER_COOLER_PIN > -1 && EXT1_EXTRUDER_COOLER_PIN != EXT0_EXTRUDER_COOLER_PIN) || (NUM_EXTRUDER > 2 && EXT2_EXTRUDER_COOLER_PIN > -1 && EXT2_EXTRUDER_COOLER_PIN != EXT2_EXTRUDER_COOLER_PIN) || (NUM_EXTRUDER > 3 && EXT3_EXTRUDER_COOLER_PIN > -1 && EXT3_EXTRUDER_COOLER_PIN != EXT3_EXTRUDER_COOLER_PIN) || (NUM_EXTRUDER > 4 && EXT4_EXTRUDER_COOLER_PIN > -1 && EXT4_EXTRUDER_COOLER_PIN != EXT4_EXTRUDER_COOLER_PIN) || (NUM_EXTRUDER > 5 && EXT5_EXTRUDER_COOLER_PIN > -1 && EXT5_EXTRUDER_COOLER_PIN != EXT5_EXTRUDER_COOLER_PIN))
     static uint8_t pwm_cooler_pos_set[NUM_EXTRUDER];
 #endif
+#if defined(__AVR__)
     PWM_OCR += 64;
+#elif defined(ARDUINO_ARCH_PIC32)
+// TODO: implement this?
+#else
+#error not implemented
+#endif
+
     if(pwm_count_heater == 0 && !PDM_FOR_EXTRUDER)
     {
 #if defined(EXT0_HEATER_PIN) && EXT0_HEATER_PIN > -1
@@ -1007,6 +1113,7 @@ if(fan2Kickstart == 0)
 #endif
     }
 // read analog values
+#ifdef __AVR__
 #if ANALOG_INPUTS > 0
     if((ADCSRA & _BV(ADSC)) == 0)   // Conversion finished?
     {
@@ -1039,6 +1146,11 @@ if(fan2Kickstart == 0)
         }
         ADCSRA |= _BV(ADSC);  // start next conversion
     }
+#endif
+#elif defined(ARDUINO_ARCH_PIC32)
+	// TODO: implement this?
+#else
+#error not implemented
 #endif
 
     UI_FAST; // Short timed user interface action
