@@ -322,6 +322,7 @@ int HAL::getFreeRam()
     return freeram;
 #elif defined(ARDUINO_ARCH_PIC32)
 	// TODO: implement this
+	return 42;
 #else
 #error Implement this
 #endif

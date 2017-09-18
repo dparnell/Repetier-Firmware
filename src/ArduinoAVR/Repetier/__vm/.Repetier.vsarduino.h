@@ -11,7 +11,6 @@
 #ifndef _VSARDUINO_H_
 #define _VSARDUINO_H_
 #define __PIC32_32MX795F512L__
-#define _VMDEBUG 1
 #define ARDUINO_ARCH_PIC32
 #define F_CPU 80000000L
 #define ARDUINO 106010

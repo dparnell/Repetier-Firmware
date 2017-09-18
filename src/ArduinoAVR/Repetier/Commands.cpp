@@ -803,7 +803,7 @@ void Commands::processArc(GCode *com) {
         double x = target[X_AXIS]-position[X_AXIS];
         double y = target[Y_AXIS]-position[Y_AXIS];
 
-        double h_x2_div_d = -sqrt(4 * r*r - x*x - y*y)/hypot(x,y); // == -(h * 2 / d)
+        double h_x2_div_d = -sqrt(4.0 * r*r - x*x - y*y)/hypot(x,y); // == -(h * 2 / d)
         // If r is smaller than d, the arc is now traversing the complex plane beyond the reach of any
         // real CNC, and thus - for practical reasons - we will terminate promptly:
         if(isnan(h_x2_div_d)) {

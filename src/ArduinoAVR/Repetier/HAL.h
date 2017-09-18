@@ -88,24 +88,8 @@ All known arduino boards use 64. This value is needed for the extruder timing. *
 #define	WRITE(IO, v)  digitalWrite(IO, v)
 #define	SET_INPUT(IO)  pinMode(IO, INPUT)
 #define	SET_OUTPUT(IO)  pinMode(IO, OUTPUT)
-#endif
-
-#ifndef PULLUP
-#if defined(ARDUINO_ARCH_PIC32)
-// TODO: implement this
-#define PULLUP(PIN, STATE)
-#else
-#error Implement PULLUP
-#endif
-#endif
-
-#ifndef TOGGLE
-#if defined(ARDUINO_ARCH_PIC32)
-// TODO: implement this
-#define TOGGLE(PIN)
-#else
-#error Implement PULLUP
-#endif
+#define PULLUP(IO, STATE) WRITE(IO, STATE)
+#define TOGGLE(IO) WRITE(IO, !READ(IO))
 #endif
 
 class InterruptProtectedBlock
